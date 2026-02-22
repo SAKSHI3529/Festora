@@ -1,0 +1,37 @@
+/* Reset only — Purple theme handles all visual styling via /assets/css/app.min.css */
+body {
+    margin: 0;
+}
+
+/* Ensure React root fills the layout-wrapper correctly */
+#root {
+    display: contents;
+}
+
+/* ── Footer fix ─────────────────────────────────────────────────────────────
+   The Purple template positions .footer as a fixed bottom bar offset by the
+   sidebar width (250px). Bootstrap 5 can override these. We re-assert them. */
+.footer {
+    position: fixed !important;
+    bottom: 0;
+    left: 250px;
+    right: 0;
+    height: 60px;
+    background: #fff;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    z-index: 1000;
+    box-shadow: 0 -1px 4px rgba(0,0,0,.05);
+}
+
+/* Give the page content bottom padding so the fixed footer doesn't overlap */
+.page-content {
+    padding-bottom: 80px !important;
+}
+
+/* Collapsed sidebar state */
+body[data-sidebar-size="sm"] .footer {
+    left: 70px;
+}
