@@ -13,7 +13,7 @@ from app.dependencies.rbac import RoleChecker, get_current_user
 router = APIRouter()
 
 allow_create_event = RoleChecker([UserRole.ADMIN])
-allow_edit_event = RoleChecker([UserRole.ADMIN])
+allow_edit_event = RoleChecker([UserRole.ADMIN, UserRole.FACULTY])
 allow_upload_rulebook = RoleChecker([UserRole.ADMIN, UserRole.FACULTY])
 
 async def validate_event_roles(event_in: EventCreate | EventUpdate, db):
@@ -102,10 +102,16 @@ async def read_events(db=Depends(get_database), current_user: User = Depends(get
     elif current_user.role == UserRole.EVENT_COORDINATOR:
         query["event_coordinator_ids"] = current_user.id
         
-    events = await db["events"].find(query).to_list(1000)
+    events = await db["events"].find(query).sort("event_date", -1).to_list(1000)
     for event in events:
         event["_id"] = str(event["_id"])
         event["id"] = event["_id"]
+        if "faculty_coordinator_id" in event:
+            event["faculty_coordinator_id"] = str(event["faculty_coordinator_id"])
+        if "event_coordinator_ids" in event:
+            event["event_coordinator_ids"] = [str(eid) for eid in event["event_coordinator_ids"]]
+        if "judge_ids" in event:
+            event["judge_ids"] = [str(jid) for jid in event["judge_ids"]]
         if "created_at" not in event or event["created_at"] is None:
             event["created_at"] = datetime.utcnow()
     return events
@@ -121,6 +127,12 @@ async def read_event(id: str, db=Depends(get_database), current_user: User = Dep
     
     event["_id"] = str(event["_id"])
     event["id"] = event["_id"]
+    if "faculty_coordinator_id" in event:
+        event["faculty_coordinator_id"] = str(event["faculty_coordinator_id"])
+    if "event_coordinator_ids" in event:
+        event["event_coordinator_ids"] = [str(eid) for eid in event["event_coordinator_ids"]]
+    if "judge_ids" in event:
+        event["judge_ids"] = [str(jid) for jid in event["judge_ids"]]
     return event
 
 @router.put("/{id}", response_model=EventResponse, dependencies=[Depends(allow_edit_event)])
@@ -132,10 +144,36 @@ async def update_event(id: str, event_update: EventUpdate, db=Depends(get_databa
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 
+    # Permissions Check: Faculty can only edit their own events
+    if current_user.role == UserRole.FACULTY and event.get("faculty_coordinator_id") != str(current_user.id):
+        raise HTTPException(status_code=403, detail="You can only edit events you are coordinating")
+
     await validate_event_roles(event_update, db)
 
     update_data = {k: v for k, v in event_update.dict(exclude_unset=True).items()}
     
+    if "status" in update_data:
+        new_status = update_data["status"]
+        old_status = event.get("status")
+        
+        # Enforce lifecycle rules
+        if current_user.role != UserRole.ADMIN:
+            # Result locking is Admin or assigned Faculty only
+            if "is_result_locked" in update_data:
+                # Check if actually changing the locking state
+                if update_data["is_result_locked"] != event.get("is_result_locked"):
+                    if current_user.role == UserRole.FACULTY:
+                        if event.get("faculty_coordinator_id") != str(current_user.id):
+                            raise HTTPException(status_code=403, detail="Only the assigned faculty coordinator can lock results")
+                    elif current_user.role != UserRole.ADMIN:
+                        raise HTTPException(status_code=403, detail="Only admins or assigned faculty can lock results")
+
+                # Validate that event is COMPLETED before locking
+                if update_data["is_result_locked"]:
+                    final_status = update_data.get("status", event.get("status"))
+                    if final_status != EventStatus.COMPLETED:
+                        raise HTTPException(status_code=400, detail="Cannot lock results unless event is COMPLETED")
+
     if update_data:
         await db["events"].update_one({"_id": ObjectId(id)}, {"$set": update_data})
         
@@ -153,6 +191,12 @@ async def update_event(id: str, event_update: EventUpdate, db=Depends(get_databa
     updated_event = await db["events"].find_one({"_id": ObjectId(id)})
     updated_event["_id"] = str(updated_event["_id"])
     updated_event["id"] = updated_event["_id"]
+    if "faculty_coordinator_id" in updated_event:
+        updated_event["faculty_coordinator_id"] = str(updated_event["faculty_coordinator_id"])
+    if "event_coordinator_ids" in updated_event:
+        updated_event["event_coordinator_ids"] = [str(eid) for eid in updated_event["event_coordinator_ids"]]
+    if "judge_ids" in updated_event:
+        updated_event["judge_ids"] = [str(jid) for jid in updated_event["judge_ids"]]
     return updated_event
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(allow_edit_event)])
@@ -228,74 +272,80 @@ async def get_participants(
     # For now, strict RBAC might block coordinators if they try. 
     # Let's add coordinator role to allowed list in logic if needed, but sticking to provided checkers for speed.
     
-    match_query = {"event_id": id}
-    
-    # Aggregation Pipeline
-    pipeline = [
-        {"$match": match_query},
-        # Join with Users to get student details
-        {
-            "$lookup": {
-                "from": "users",
-                "let": {"studentId": {"$toObjectId": "$student_id"}},
-                "pipeline": [
-                    {"$match": {"$expr": {"$eq": ["$_id", "$$studentId"]}}}
-                ],
-                "as": "student"
-            }
-        },
-        {"$unwind": "$student"},
-        # Join with Teams (if exists)
-        {
-             "$lookup": {
-                "from": "teams",
-                "let": {"teamId": "$team_id"},
-                "pipeline": [
-                    {
-                        "$match": {
-                            "$expr": {
-                                "$eq": [
-                                    "$_id",
-                                    {
-                                        "$convert": {
-                                            "input": "$$teamId",
-                                            "to": "objectId",
-                                            "onError": None,
-                                            "onNull": None
+    try:
+        match_query = {"event_id": id}
+        
+        # Aggregation Pipeline
+        pipeline = [
+            {"$match": match_query},
+            {
+                "$lookup": {
+                    "from": "users",
+                    "let": {"studentId": {
+                        "$convert": {
+                            "input": "$student_id",
+                            "to": "objectId",
+                            "onError": None,
+                            "onNull": None
+                        }
+                    }},
+                    "pipeline": [
+                        {"$match": {"$expr": {"$eq": ["$_id", "$$studentId"]}}}
+                    ],
+                    "as": "student"
+                }
+            },
+            {"$unwind": {"path": "$student", "preserveNullAndEmptyArrays": True}},
+            {
+                 "$lookup": {
+                    "from": "teams",
+                    "let": {"teamId": "$team_id"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$eq": [
+                                        "$_id",
+                                        {
+                                            "$convert": {
+                                                "input": "$$teamId",
+                                                "to": "objectId",
+                                                "onError": None,
+                                                "onNull": None
+                                            }
                                         }
-                                    }
-                                ]
+                                    ]
+                                }
                             }
                         }
-                    }
-                ],
-                "as": "team"
+                    ],
+                    "as": "team"
+                }
+            },
+            {"$unwind": {"path": "$team", "preserveNullAndEmptyArrays": True}},
+            {
+                "$project": {
+                    "_id": 0,
+                    "id": {"$toString": "$_id"}, 
+                    "student_id": {"$toString": "$student_id"},
+                    "student_name": {"$ifNull": ["$student.full_name", "Unknown"]},
+                    "registration_number": {"$ifNull": ["$student.registration_number", ""]},
+                    "department": {"$ifNull": ["$student.department", ""]},
+                    "team_id": {"$toString": "$team_id"},
+                    "team_name": {"$ifNull": ["$team.team_name", None]},
+                    "status": "$status"
+                }
             }
-        },
-        {"$unwind": {"path": "$team", "preserveNullAndEmptyArrays": True}},
-        # Filter by department if provided (on student)
-        {
-            "$match": {
-                "student.department": department
-            } if department else {}
-        },
-        # Project fields
-        {
-            "$project": {
-                "id": {"$toString": "$_id"}, 
-                "student_id": {"$toString": "$student_id"},
-                "student_name": "$student.full_name", 
-                "student_name": "$student.full_name",
-                "registration_number": "$student.registration_number",
-                "department": "$student.department",
-                "team_name": {"$ifNull": ["$team.team_name", None]},
-                "status": "$status"
-            }
-        }
-    ]
+        ]
 
-    participants = await db["registrations"].aggregate(pipeline).to_list(None)
-    return participants
+        if department:
+            pipeline.append({"$match": {"department": department}})
+
+        participants = await db["registrations"].aggregate(pipeline).to_list(None)
+        return participants
+    except Exception as e:
+        print(f"ERROR in get_participants: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 from app.schemas.attendance import AttendanceCreate, AttendanceResponse
 from app.models.attendance import Attendance, AttendanceStatus

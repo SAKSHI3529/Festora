@@ -59,3 +59,8 @@ export const uploadRulebook = async (id, file) => {
     });
     return response.data;
 };
+
+export const lockResults = async (eventId) => {
+    const response = await api.put(`/scores/${eventId}/lock`);
+    return response.data;
+};

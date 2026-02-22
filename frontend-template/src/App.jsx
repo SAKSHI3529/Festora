@@ -46,11 +46,15 @@ import StudentEvents from './pages/student/StudentEvents';
 import MyRegistrations from './pages/student/MyRegistrations';
 import EventResults from './pages/student/EventResults';
 import StudentCertificates from './pages/student/StudentCertificates';
+import StudentDashboard from './pages/student/StudentDashboard';
 
 // Faculty Pages
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
 import Approvals from './pages/faculty/Approvals';
+import FacultyApprovalsList from './pages/faculty/FacultyApprovalsList';
 import Attendance from './pages/faculty/Attendance';
+import FacultyAttendanceList from './pages/faculty/FacultyAttendanceList';
+import FacultyStatusList from './pages/faculty/FacultyStatusList';
 import BudgetRequests from './pages/faculty/BudgetRequests';
 
 // Coordinator Pages
@@ -140,22 +144,37 @@ function App() {
                         <Route path="/student/registrations" element={
                             <ProtectedRoute roles={['student']}><MyRegistrations /></ProtectedRoute>
                         } />
+                        <Route path="/student/results" element={
+                            <ProtectedRoute roles={['student']}><EventResults /></ProtectedRoute>
+                        } />
                         <Route path="/student/results/:eventId" element={
                             <ProtectedRoute roles={['student']}><EventResults /></ProtectedRoute>
                         } />
                         <Route path="/student/certificates" element={
                             <ProtectedRoute roles={['student']}><StudentCertificates /></ProtectedRoute>
                         } />
+                        <Route path="/student/dashboard" element={
+                            <ProtectedRoute roles={['student']}><StudentDashboard /></ProtectedRoute>
+                        } />
 
                         {/* Faculty routes */}
                         <Route path="/faculty/dashboard" element={
                             <ProtectedRoute roles={['faculty']}><FacultyDashboard /></ProtectedRoute>
                         } />
+                        <Route path="/faculty/approvals" element={
+                            <ProtectedRoute roles={['faculty']}><FacultyApprovalsList /></ProtectedRoute>
+                        } />
                         <Route path="/faculty/approvals/:eventId" element={
                             <ProtectedRoute roles={['faculty']}><Approvals /></ProtectedRoute>
                         } />
+                        <Route path="/faculty/attendance" element={
+                            <ProtectedRoute roles={['faculty']}><FacultyAttendanceList /></ProtectedRoute>
+                        } />
                         <Route path="/faculty/attendance/:eventId" element={
                             <ProtectedRoute roles={['faculty', 'event_coordinator']}><Attendance /></ProtectedRoute>
+                        } />
+                        <Route path="/faculty/status" element={
+                            <ProtectedRoute roles={['faculty']}><FacultyStatusList /></ProtectedRoute>
                         } />
                         <Route path="/faculty/budgets" element={
                             <ProtectedRoute roles={['faculty']}><BudgetRequests /></ProtectedRoute>

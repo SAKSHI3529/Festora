@@ -23,6 +23,12 @@ async def approve_team(id: str, db=Depends(get_database), current_user: User = D
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
+    # Assignment Check for Faculty
+    if current_user.role == UserRole.FACULTY:
+        event = await db["events"].find_one({"_id": ObjectId(team["event_id"])})
+        if not event or event.get("faculty_coordinator_id") != str(current_user.id):
+            raise HTTPException(status_code=403, detail="You are not authorized to approve teams for this event")
+
     if team["status"] != TeamStatus.PENDING:
          raise HTTPException(status_code=400, detail=f"Cannot approve. Current status: {team['status']}")
 
@@ -64,6 +70,12 @@ async def reject_team(id: str, db=Depends(get_database), current_user: User = De
     if not team:
         raise HTTPException(status_code=404, detail="Team not found")
     
+    # Assignment Check for Faculty
+    if current_user.role == UserRole.FACULTY:
+        event = await db["events"].find_one({"_id": ObjectId(team["event_id"])})
+        if not event or event.get("faculty_coordinator_id") != str(current_user.id):
+            raise HTTPException(status_code=403, detail="You are not authorized to reject teams for this event")
+
     if team["status"] != TeamStatus.PENDING:
          raise HTTPException(status_code=400, detail=f"Cannot reject. Current status: {team['status']}")
 

@@ -1,5 +1,4 @@
-from pydantic import BaseModel, HttpUrl
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from app.models.event import EventType, EventStatus
@@ -25,9 +24,7 @@ class EventCreate(EventBase):
     pass
 
 class EventUpdate(BaseModel):
-    # Extra fields sent by frontend (id, created_by, created_at, etc.) are silently ignored
     model_config = ConfigDict(extra='ignore')
-
     title: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
@@ -46,10 +43,7 @@ class EventUpdate(BaseModel):
     rulebook_url: Optional[str] = None
 
 class EventResponse(BaseModel):
-    """Separate from EventBase to avoid strict required-field validation failures
-    when returning existing DB documents that may be missing some fields."""
-    model_config = ConfigDict(populate_by_name=True, use_enum_values=True)
-
+    model_config = ConfigDict(populate_by_name=True, use_enum_values=True, extra='ignore')
     id: str
     title: str
     description: Optional[str] = None

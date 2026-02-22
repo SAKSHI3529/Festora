@@ -170,6 +170,12 @@ async def approve_registration(id: str, db=Depends(get_database), current_user: 
     if not reg:
         raise HTTPException(status_code=404, detail="Registration not found")
     
+    # Assignment Check for Faculty
+    if current_user.role == UserRole.FACULTY:
+        event = await db["events"].find_one({"_id": ObjectId(reg["event_id"])})
+        if not event or event.get("faculty_coordinator_id") != str(current_user.id):
+            raise HTTPException(status_code=403, detail="You are not authorized to approve registrations for this event")
+
     if reg["status"] != RegistrationStatus.PENDING:
         raise HTTPException(status_code=400, detail=f"Cannot approve. Current status: {reg['status']}")
     
@@ -204,6 +210,12 @@ async def reject_registration(id: str, db=Depends(get_database), current_user: U
     reg = await db["registrations"].find_one({"_id": ObjectId(id)})
     if not reg:
         raise HTTPException(status_code=404, detail="Registration not found")
+
+    # Assignment Check for Faculty
+    if current_user.role == UserRole.FACULTY:
+        event = await db["events"].find_one({"_id": ObjectId(reg["event_id"])})
+        if not event or event.get("faculty_coordinator_id") != str(current_user.id):
+            raise HTTPException(status_code=403, detail="You are not authorized to reject registrations for this event")
 
     if reg["status"] != RegistrationStatus.PENDING:
         raise HTTPException(status_code=400, detail=f"Cannot reject. Current status: {reg['status']}")
@@ -253,6 +265,16 @@ async def get_my_registrations(db=Depends(get_database), current_user: User = De
         reg["_id"] = str(reg["_id"])
         reg["id"] = reg["_id"]
     return registrations
+
+@router.get("/my-teams", dependencies=[Depends(allow_create_registration)])
+async def get_my_teams(db=Depends(get_database), current_user: User = Depends(get_current_user)):
+    """Returns all teams the current student is part of."""
+    teams = await db["teams"].find({"member_ids": current_user.id}).to_list(1000)
+    for team in teams:
+        team["_id"] = str(team["_id"])
+        team["id"] = team["_id"]
+    return teams
+
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_registration(id: str, db=Depends(get_database), current_user: User = Depends(get_current_user)):
     if not ObjectId.is_valid(id):
@@ -265,28 +287,55 @@ async def delete_registration(id: str, db=Depends(get_database), current_user: U
 
     # Check ownership or admin
     if reg["student_id"] != current_user.id and current_user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this registration")
-    
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this registration")
+
     # Check status (Can only cancel PENDING)
     if reg["status"] != RegistrationStatus.PENDING:
-        raise HTTPException(status_code=400, detail="Cannot cancel processed registration")
+        raise HTTPException(status_code=400, detail="Cannot cancel a processed registration")
 
-    # Delete
-    await db["registrations"].delete_one({"_id": ObjectId(id)})
-    
-    # If it's a team leader and team registration?
-    # Logic in create_registration creates multiple registrations linked by team_id.
-    # If a member cancels, remove them? Or entire team?
-    # Simple logic: If part of a team, maybe warn or handle differently. 
-    # For now, simple delete.
-    
-    # Log Action
-    await log_action(
-        user_id=current_user.id,
-        user_role=current_user.role,
-        action=AuditAction.DELETE,
-        module=AuditModule.REGISTRATIONS,
-        ref_id=id,
-        description=f"Cancelled registration",
-        db=db
-    )
+    team_id = reg.get("team_id")
+
+    if team_id:
+        # --- GROUP REGISTRATION: only leader can cancel entire team ---
+        if not ObjectId.is_valid(team_id):
+            raise HTTPException(status_code=400, detail="Invalid Team ID in registration")
+
+        team = await db["teams"].find_one({"_id": ObjectId(team_id)})
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        # Enforce: only the team leader (or admin) may cancel
+        if team["leader_id"] != current_user.id and current_user.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the team leader can cancel the group registration"
+            )
+
+        # Delete ALL registrations linked to this team
+        await db["registrations"].delete_many({"team_id": team_id})
+
+        # Delete the team document
+        await db["teams"].delete_one({"_id": ObjectId(team_id)})
+
+        await log_action(
+            user_id=current_user.id,
+            user_role=current_user.role,
+            action=AuditAction.DELETE,
+            module=AuditModule.TEAMS,
+            ref_id=team_id,
+            description=f"Team leader cancelled group registration (team_id: {team_id})",
+            db=db
+        )
+    else:
+        # --- SOLO REGISTRATION ---
+        await db["registrations"].delete_one({"_id": ObjectId(id)})
+
+        await log_action(
+            user_id=current_user.id,
+            user_role=current_user.role,
+            action=AuditAction.DELETE,
+            module=AuditModule.REGISTRATIONS,
+            ref_id=id,
+            description=f"Student cancelled solo registration",
+            db=db
+        )

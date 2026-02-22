@@ -125,9 +125,7 @@ async def submit_score(score_in: ScoreCreate, db=Depends(get_database), current_
 
 from app.schemas.result import EventResultResponse, ResultEntry
 
-allow_manage_results = RoleChecker([UserRole.ADMIN])
-
-@router.put("/{event_id}/lock", dependencies=[Depends(allow_manage_results)])
+@router.put("/{event_id}/lock", dependencies=[Depends(get_current_user)])
 async def lock_results(event_id: str, db=Depends(get_database), current_user: User = Depends(get_current_user)):
     if not ObjectId.is_valid(event_id):
         raise HTTPException(status_code=400, detail="Invalid ID format")
@@ -136,6 +134,13 @@ async def lock_results(event_id: str, db=Depends(get_database), current_user: Us
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     
+    # Permissions Check: Admin or Assigned Faculty
+    if current_user.role == UserRole.FACULTY:
+        if event.get("faculty_coordinator_id") != str(current_user.id):
+            raise HTTPException(status_code=403, detail="Only the assigned faculty coordinator can lock results")
+    elif current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only admins or assigned faculty can lock results")
+
     if event["status"] != EventStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="Event must be COMPLETED to lock results")
     

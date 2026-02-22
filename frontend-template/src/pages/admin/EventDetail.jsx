@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Card, Badge, Button, Table, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Card, Badge, Button, Table, Alert, Form } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getEvent } from '../../api/events';
+import { getEvent, updateEvent, getAttendance, lockResults } from '../../api/events';
 import { getUsers } from '../../api/admin';
+import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 // Category → gradient background mapping
@@ -25,8 +26,9 @@ const STATUS_CONFIG = {
 };
 
 const EventDetail = () => {
-    const { eventId } = useParams();
     const navigate = useNavigate();
+    const { eventId } = useParams();
+    const { user } = useAuth();
     const [event, setEvent] = useState(null);
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -227,56 +229,82 @@ const EventDetail = () => {
                         </Card.Body>
                     </Card>
 
-                    {/* Quick Actions & Status Control */}
-                    <Card className="shadow-sm border-0 mb-4">
-                        <Card.Header className="bg-white border-bottom fw-semibold">
-                            ⚡ Admin Control Panel
-                        </Card.Header>
-                        <Card.Body className="d-grid gap-2">
-                            <div className="mb-3">
-                                <Form.Label className="small fw-bold">Update Event Status</Form.Label>
-                                <Form.Select 
-                                    size="sm" 
-                                    value={event.status} 
-                                    onChange={async (e) => {
-                                        const newStatus = e.target.value;
-                                        // Validation: Cannot mark Completed if not Ongoing
-                                        if (newStatus === 'COMPLETED' && event.status !== 'ONGOING') {
-                                            alert('Event must be "Ongoing" before marking as "Completed"');
-                                            return;
-                                        }
-                                        if (window.confirm(`Change status to ${newStatus}?`)) {
-                                            try {
-                                                const updated = await updateEvent(event.id, { ...event, status: newStatus });
-                                                setEvent(updated);
-                                            } catch (err) {
-                                                alert(err.response?.data?.detail || 'Update failed');
+                    {/* Event Lifecycle Management */}
+                    {user && (user.role === 'admin' || (user.role === 'faculty' && event.faculty_coordinator_id === user.id)) && (
+                        <Card className="shadow-sm border-0 mb-4">
+                            <Card.Header className="bg-white border-bottom fw-semibold">
+                                ⚙️ Event Management
+                            </Card.Header>
+                            <Card.Body className="d-grid gap-2">
+                                <div className="mb-3">
+                                    <Form.Label className="small fw-bold">Update Event Status</Form.Label>
+                                    <Form.Select 
+                                        size="sm" 
+                                        value={event.status} 
+                                        onChange={async (e) => {
+                                            const newStatus = e.target.value;
+                                            // Frontend pre-validation (Backend also enforces this)
+                                            if (user.role !== 'admin') {
+                                                if (newStatus === 'ONGOING' && event.status !== 'SCHEDULED') {
+                                                    alert('Can only mark ONGOING if currently SCHEDULED');
+                                                    return;
+                                                }
+                                                if (newStatus === 'COMPLETED' && event.status !== 'ONGOING') {
+                                                    alert('Event must be ONGOING before marking as COMPLETED');
+                                                    return;
+                                                }
                                             }
-                                        }
-                                    }}
-                                    disabled={event.is_result_locked}
-                                >
-                                    <option value="SCHEDULED">🗓 Scheduled</option>
-                                    <option value="ONGOING">🔴 Ongoing</option>
-                                    <option value="COMPLETED">✅ Completed</option>
-                                </Form.Select>
-                                {event.is_result_locked && <small className="text-danger">Status locked after results are finalized.</small>}
-                            </div>
+                                            if (window.confirm(`Change status to ${newStatus}?`)) {
+                                                try {
+                                                    const updated = await updateEvent(event.id, { ...event, status: newStatus });
+                                                    setEvent(updated);
+                                                } catch (err) {
+                                                    alert(err.response?.data?.detail || 'Update failed');
+                                                }
+                                            }
+                                        }}
+                                        disabled={event.is_result_locked}
+                                    >
+                                        <option value="SCHEDULED">🗓 Scheduled</option>
+                                        <option value="ONGOING">🔴 Ongoing</option>
+                                        <option value="COMPLETED">✅ Completed</option>
+                                    </Form.Select>
+                                    {event.is_result_locked && <small className="text-danger mt-1 d-block">Status locked after results are finalized.</small>}
+                                </div>
 
-                            <Button variant="outline-primary" size="sm"
-                                onClick={() => navigate(`/admin/reports/events/${eventId}`)}>
-                                📊 Detailed Analytics
-                            </Button>
-                            <Button variant="outline-success" size="sm"
-                                onClick={() => navigate(`/admin/certificates/${eventId}`)}>
-                                🎓 Certificates
-                            </Button>
-                            <Button variant="outline-info" size="sm"
-                                onClick={() => navigate(`/admin/participants`)}>
-                                👥 All Participants
-                            </Button>
-                        </Card.Body>
-                    </Card>
+                                {user && (user.role === 'admin' || (user.role === 'faculty' && event.faculty_coordinator_id === user.id)) && (
+                                    <Button 
+                                        variant={event.is_result_locked ? "secondary" : "danger"} 
+                                        size="sm"
+                                        disabled={event.is_result_locked || event.status !== 'COMPLETED'}
+                                        onClick={async () => {
+                                            if (window.confirm('Are you sure you want to LOCK results? This action is irreversible and will block further scoring.')) {
+                                                try {
+                                                    await lockResults(event.id);
+                                                    setEvent({ ...event, is_result_locked: true });
+                                                } catch (err) {
+                                                    alert(err.response?.data?.detail || 'Locking failed');
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        {event.is_result_locked ? '🔒 Results Locked' : '🔒 Lock Results'}
+                                    </Button>
+                                )}
+
+                                <div className="border-top pt-2 mt-2 d-grid gap-2">
+                                    <Button variant="outline-primary" size="sm"
+                                        onClick={() => navigate(`/admin/reports/events/${eventId}`)}>
+                                        📊 Detailed Analytics
+                                    </Button>
+                                    <Button variant="outline-success" size="sm"
+                                        onClick={() => navigate(`/admin/certificates/${eventId}`)}>
+                                        🎓 Certificates
+                                    </Button>
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    )}
 
                     {/* Attendance Overview (Phase 3) */}
                     <AttendanceOverview eventId={eventId} />

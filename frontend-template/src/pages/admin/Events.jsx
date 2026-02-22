@@ -43,7 +43,7 @@ const Events = () => {
     const fetchData = async () => {
         try {
             const [eventsData, usersData] = await Promise.all([getEvents(), getUsers()]);
-            setEvents(eventsData);
+            setEvents(eventsData.map(e => ({ ...e, id: e.id || e._id })));
             
             setFacultyList(usersData.filter(u => u.role === 'faculty'));
             setCoordinatorList(usersData.filter(u => u.role === 'event_coordinator'));

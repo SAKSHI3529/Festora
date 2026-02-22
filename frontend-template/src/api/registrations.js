@@ -11,16 +11,12 @@ export const getMyRegistrations = async () => {
 };
 
 export const cancelRegistration = async (id) => {
-    // Note: Cancel is DELETE /registrations/{id} ?
-    // Backend doesn't have explicit DELETE in routers/registrations.py!
-    // Wait, let me check registrations.py again.
-    // I only saw create, approve, reject, get_event_regs, get_my.
-    // I need to check if DELETE exists.
-    // If not, I need to add it.
-    // ... Checked file view from Step 1343 ...
-    // It is MISSING! 
-    // I need to add delete_registration endpoint to backend too.
     const response = await api.delete(`/registrations/${id}`);
+    return response.data;
+};
+
+export const getMyTeams = async () => {
+    const response = await api.get('/registrations/my-teams');
     return response.data;
 };
 

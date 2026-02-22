@@ -24,7 +24,7 @@ const Scoring = () => {
     const fetchData = async () => {
         try {
             const eventData = await getEvent(eventId);
-            setEvent(eventData);
+            setEvent({ ...eventData, id: eventData.id || eventData._id });
 
             if (eventData.event_type === 'SOLO') {
                 const parts = await getEventParticipants(eventId);

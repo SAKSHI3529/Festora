@@ -1,0 +1,6 @@
+APP MODULE: <module 'app' (namespace) from ['E:\\2026\\Festora\\backend\\app', 'E:\\2026\\Festora\\backend\\app']>
+EVENT RESPONSE FIELDS: ['id', 'title', 'description', 'category', 'event_type', 'max_team_size', 'min_participants', 'max_participants', 'event_date', 'registration_deadline', 'location', 'status', 'faculty_coordinator_id', 'event_coordinator_ids', 'judge_ids', 'is_result_locked', 'rulebook_url', 'created_by', 'created_at']
+Calling GET /events/699b37bc0549767e51cfac07/participants
+Status: 200
+Success! Found 3 events
+First event sample: {'id': '699b37f30549767e51cfac0b', 'student_id': '699b166c1497898ffced9101', 'student_name': 'Student3', 'registration_number': '1231', 'department': 'CSE', 'team_id': '699b37f30549767e51cfac0a', 'team_name': 'Anataa', 'status': 'PENDING'}
