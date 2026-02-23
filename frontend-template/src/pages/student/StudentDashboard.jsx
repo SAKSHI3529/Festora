@@ -7,21 +7,27 @@ import { getMyTeams } from '../../api/registrations';
 import { AuthContext } from '../../context/AuthContext';
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
-const StatCard = ({ label, value, icon, gradient, loading }) => (
-    <Card className="border-0 shadow-sm h-100" style={{ borderRadius: 14, overflow: 'hidden' }}>
-        <div style={{ background: gradient, padding: '20px 24px', position: 'relative', overflow: 'hidden' }}>
-            <div style={{
-                position: 'absolute', top: -20, right: -20,
-                width: 100, height: 100, borderRadius: '50%',
-                background: 'rgba(255,255,255,0.12)'
-            }} />
-            <div style={{ fontSize: 32 }}>{icon}</div>
-            <div className="text-white fw-bold mt-2" style={{ fontSize: 32, lineHeight: 1 }}>
-                {loading ? <Spinner size="sm" /> : value}
-            </div>
-            <div className="text-white-50 mt-1" style={{ fontSize: 13 }}>{label}</div>
-        </div>
-    </Card>
+const StatCard = ({ label, value, icon, color, loading }) => (
+    <Col xs={6} xl={3} className="mb-4">
+        <Card className="shadow-sm h-100 py-2 border-0"
+            style={{ borderLeft: `4px solid ${color}`, borderRadius: 12 }}>
+            <Card.Body>
+                <Row className="no-gutters align-items-center">
+                    <Col>
+                        <div style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: 1 }}>
+                            {label}
+                        </div>
+                        <div className="h4 mb-0 fw-bold mt-1">
+                            {loading ? <Spinner size="sm" animation="border" /> : value}
+                        </div>
+                    </Col>
+                    <Col className="col-auto">
+                        <i className={`fas ${icon} fa-2x`} style={{ color, opacity: 0.3 }}></i>
+                    </Col>
+                </Row>
+            </Card.Body>
+        </Card>
+    </Col>
 );
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
@@ -111,43 +117,11 @@ const StudentDashboard = () => {
             </div>
 
             {/* ── Stat Cards ── */}
-            <Row className="mb-4 g-3">
-                <Col xs={6} xl={3}>
-                    <StatCard
-                        label="Total Registered"
-                        value={total}
-                        icon="📋"
-                        gradient="linear-gradient(135deg,#6a11cb,#2575fc)"
-                        loading={loading}
-                    />
-                </Col>
-                <Col xs={6} xl={3}>
-                    <StatCard
-                        label="Approved"
-                        value={approved}
-                        icon="✅"
-                        gradient="linear-gradient(135deg,#11998e,#38ef7d)"
-                        loading={loading}
-                    />
-                </Col>
-                <Col xs={6} xl={3}>
-                    <StatCard
-                        label="Pending"
-                        value={pending}
-                        icon="⏳"
-                        gradient="linear-gradient(135deg,#f093fb,#f5576c)"
-                        loading={loading}
-                    />
-                </Col>
-                <Col xs={6} xl={3}>
-                    <StatCard
-                        label="Teams Joined"
-                        value={teamCount}
-                        icon="👥"
-                        gradient="linear-gradient(135deg,#fa709a,#fee140)"
-                        loading={loading}
-                    />
-                </Col>
+            <Row className="mb-4">
+                <StatCard label="Total Registered" value={total} icon="fa-clipboard-list" color="#4e73df" loading={loading} />
+                <StatCard label="Approved" value={approved} icon="fa-check-circle" color="#1cc88a" loading={loading} />
+                <StatCard label="Pending" value={pending} icon="fa-hourglass-half" color="#f6c23e" loading={loading} />
+                <StatCard label="Teams Joined" value={teamCount} icon="fa-users" color="#36b9cc" loading={loading} />
             </Row>
 
             <Row className="g-3">

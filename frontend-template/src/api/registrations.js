@@ -35,3 +35,8 @@ export const rejectRegistration = async (id) => {
     return response.data;
 };
 
+export const getTeam = async (id) => {
+    const response = await api.get(`/teams/${id}`);
+    return response.data;
+};
+

@@ -102,7 +102,7 @@ async def read_events(db=Depends(get_database), current_user: User = Depends(get
     elif current_user.role == UserRole.EVENT_COORDINATOR:
         query["event_coordinator_ids"] = current_user.id
         
-    events = await db["events"].find(query).sort("event_date", -1).to_list(1000)
+    events = await db["events"].find(query).sort("created_at", -1).to_list(1000)
     for event in events:
         event["_id"] = str(event["_id"])
         event["id"] = event["_id"]
@@ -375,21 +375,30 @@ async def mark_attendance(
     if not reg:
         raise HTTPException(status_code=400, detail="Student not registered or not approved")
 
-    attendance = Attendance(
-        event_id=id,
-        student_id=att_in.student_id,
-        status=att_in.status,
-        marked_by=current_user.id,
-        marked_at=datetime.utcnow()
+    # Check if attendance already marked (Immutability Rule)
+    existing_att = await db["attendance"].find_one({"event_id": id, "student_id": att_in.student_id})
+    if existing_att:
+        raise HTTPException(status_code=400, detail="Attendance already marked and cannot be changed")
+
+    # Use update_one with upsert=True to prevent duplicates and ensure we have only one record per student/event
+    attendance_data = {
+        "event_id": id,
+        "student_id": att_in.student_id,
+        "status": att_in.status,
+        "marked_by": current_user.id,
+        "marked_at": datetime.utcnow()
+    }
+    
+    await db["attendance"].update_one(
+        {"event_id": id, "student_id": att_in.student_id},
+        {"$set": attendance_data},
+        upsert=True
     )
     
-    att_dict = attendance.dict(by_alias=True)
-    if "_id" in att_dict and att_dict["_id"] is None:
-        del att_dict["_id"]
-
-    result = await db["attendance"].insert_one(att_dict)
-    created_att = await db["attendance"].find_one({"_id": result.inserted_id})
+    # Fetch the record (either newly created or updated) to return it
+    created_att = await db["attendance"].find_one({"event_id": id, "student_id": att_in.student_id})
     created_att["_id"] = str(created_att["_id"])
+    created_att["id"] = created_att["_id"]
     
     return created_att
 

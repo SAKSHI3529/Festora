@@ -60,6 +60,7 @@ import BudgetRequests from './pages/faculty/BudgetRequests';
 // Coordinator Pages
 import CoordinatorDashboard from './pages/coordinator/CoordinatorDashboard';
 import ParticipantList from './pages/coordinator/ParticipantList';
+import CoordinatorParticipants from './pages/coordinator/CoordinatorParticipants';
 
 // Judge Pages
 import JudgeDashboard from './pages/judge/JudgeDashboard';
@@ -183,6 +184,9 @@ function App() {
                         {/* Coordinator routes */}
                         <Route path="/coordinator/dashboard" element={
                             <ProtectedRoute roles={['event_coordinator']}><CoordinatorDashboard /></ProtectedRoute>
+                        } />
+                        <Route path="/coordinator/participants" element={
+                            <ProtectedRoute roles={['event_coordinator']}><CoordinatorParticipants /></ProtectedRoute>
                         } />
                         <Route path="/coordinator/events/:eventId/participants" element={
                             <ProtectedRoute roles={['event_coordinator']}><ParticipantList /></ProtectedRoute>

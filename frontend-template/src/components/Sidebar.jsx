@@ -36,6 +36,7 @@ const MENU_CONFIG = {
         { label: 'Dashboard', icon: 'mdi-view-dashboard', path: '/dashboard' },
         { title: 'Coordinator', type: 'heading' },
         { label: 'My Events', icon: 'mdi-calendar-edit', path: '/coordinator/dashboard' },
+        { label: 'Participants', icon: 'mdi-account-group', path: '/coordinator/participants' },
     ],
     judge: [
         { title: 'Main', type: 'heading' },

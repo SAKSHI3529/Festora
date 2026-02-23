@@ -9,22 +9,48 @@ import { getEventParticipants } from '../../api/registrations';
 import { getBudgets } from '../../api/budgets';
 import { AuthContext } from '../../context/AuthContext';
 
+// ─── Constants ──────────────────────────────────────────────────────────────
+const CATEGORY_GRADIENTS = {
+    'Music':        'linear-gradient(135deg,#667eea,#764ba2)',
+    'Dance':        'linear-gradient(135deg,#f093fb,#f5576c)',
+    'Sports':       'linear-gradient(135deg,#4facfe,#00f2fe)',
+    'Art':          'linear-gradient(135deg,#43e97b,#38f9d7)',
+    'Technology':   'linear-gradient(135deg,#fa709a,#fee140)',
+    'Drama':        'linear-gradient(135deg,#a18cd1,#fbc2eb)',
+    'Quiz':         'linear-gradient(135deg,#ffecd2,#fcb69f)',
+    'Photography':  'linear-gradient(135deg,#30cfd0,#330867)',
+    'Literature':   'linear-gradient(135deg,#a1c4fd,#c2e9fb)',
+    'General':      'linear-gradient(135deg,#6a11cb,#2575fc)',
+};
+
+const STATUS_CONFIG = {
+    SCHEDULED: { bg: 'warning',   label: '🗓 Scheduled' },
+    ONGOING:   { bg: 'success',   label: '🔴 Live Now'  },
+    COMPLETED: { bg: 'secondary', label: '✅ Completed'  },
+};
+
 // ─── Stat Card ────────────────────────────────────────────────────────────────
-const StatCard = ({ label, value, icon, gradient, loading }) => (
-    <Card className="border-0 shadow-sm h-100" style={{ borderRadius: 14, overflow: 'hidden' }}>
-        <div style={{ background: gradient, padding: '20px 24px', position: 'relative', overflow: 'hidden' }}>
-            <div style={{
-                position: 'absolute', top: -24, right: -24,
-                width: 100, height: 100, borderRadius: '50%',
-                background: 'rgba(255,255,255,0.12)',
-            }} />
-            <div style={{ fontSize: 32 }}>{icon}</div>
-            <div className="text-white fw-bold mt-2" style={{ fontSize: 32, lineHeight: 1 }}>
-                {loading ? <Spinner size="sm" animation="border" /> : value}
-            </div>
-            <div className="text-white-50 mt-1" style={{ fontSize: 13 }}>{label}</div>
-        </div>
-    </Card>
+const StatCard = ({ label, value, icon, color, loading }) => (
+    <Col xs={6} xl={3} className="mb-4">
+        <Card className="shadow-sm h-100 py-2 border-0"
+            style={{ borderLeft: `4px solid ${color}`, borderRadius: 12 }}>
+            <Card.Body>
+                <Row className="no-gutters align-items-center">
+                    <Col>
+                        <div style={{ fontSize: 12, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: 1 }}>
+                            {label}
+                        </div>
+                        <div className="h4 mb-0 fw-bold mt-1">
+                            {loading ? <Spinner size="sm" animation="border" /> : value}
+                        </div>
+                    </Col>
+                    <Col className="col-auto">
+                        <i className={`fas ${icon} fa-2x`} style={{ color, opacity: 0.3 }}></i>
+                    </Col>
+                </Row>
+            </Card.Body>
+        </Card>
+    </Col>
 );
 
 // ─── Participants Modal ────────────────────────────────────────────────────────
@@ -145,74 +171,100 @@ const ParticipantsModal = ({ show, onHide, event }) => {
 
 // ─── Event Card ────────────────────────────────────────────────────────────────
 const EventCard = ({ event, onViewParticipants, navigate }) => {
-    const statusCfg = {
-        SCHEDULED: { color: '#6a11cb', label: '🗓 Scheduled' },
-        ONGOING:   { color: '#11998e', label: '🔴 Live'      },
-        COMPLETED: { color: '#6c757d', label: '✅ Done'       },
-    };
-    const sc = statusCfg[event.status] || { color: '#6c757d', label: event.status };
+    const gradient = CATEGORY_GRADIENTS[event.category] || CATEGORY_GRADIENTS['General'];
+    const statusCfg = STATUS_CONFIG[event.status] || STATUS_CONFIG['SCHEDULED'];
+
+    const fmt = (dateStr) => dateStr
+        ? new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+        : '—';
 
     return (
-        <Card className="h-100 border-0 shadow-sm" style={{ borderRadius: 14, overflow: 'hidden', transition: 'transform .15s' }}
-            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-        >
-            {/* Gradient header */}
+        <Card className="h-100 border-0 shadow-sm overflow-hidden"
+            style={{ borderRadius: 14 }}>
+            {/* Background image / gradient hero */}
             <div style={{
-                background: 'linear-gradient(135deg,#6a11cb,#2575fc)',
-                padding: '18px 20px',
-                position: 'relative', overflow: 'hidden',
+                background: gradient,
+                height: 140,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                position: 'relative',
+                overflow: 'hidden',
             }}>
+                {/* Decorative circles */}
                 <div style={{
-                    position: 'absolute', top: -20, right: -20,
-                    width: 90, height: 90, borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.1)',
-                }} />
+                    position:'absolute', top:-30, right:-30,
+                    width:120, height:120, borderRadius:'50%',
+                    background:'rgba(255,255,255,0.12)',
+                }}/>
+                <div style={{
+                    position:'absolute', bottom:-40, right:40,
+                    width:90, height:90, borderRadius:'50%',
+                    background:'rgba(255,255,255,0.07)',
+                }}/>
+                {/* Status badge */}
                 <div className="d-flex justify-content-between align-items-start">
-                    <div className="text-white fw-bold" style={{ fontSize: 15 }}>{event.title}</div>
-                    <Badge
-                        style={{ background: sc.color, fontSize: 11, fontWeight: 600, flexShrink: 0 }}
-                        className="ms-2"
-                    >
-                        {sc.label}
+                    <Badge bg={statusCfg.bg} style={{ fontSize: 11, padding: '4px 10px' }}>
+                        {statusCfg.label}
                     </Badge>
                 </div>
-                <div className="text-white-50 mt-1" style={{ fontSize: 12 }}>
-                    {event.category} · {event.event_type}
+                {/* Category */}
+                <div>
+                    <span style={{
+                        color: 'rgba(255,255,255,0.8)',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: 1,
+                    }}>
+                        {event.category} · {event.event_type}
+                    </span>
                 </div>
             </div>
 
-            <Card.Body className="d-flex flex-column p-3">
+            {/* Card Body */}
+            <Card.Body className="p-3">
+                <h6 className="fw-bold mb-1" style={{
+                    fontSize: 16, lineHeight: 1.3,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                }}>
+                    {event.title}
+                </h6>
                 <div className="text-muted mb-3" style={{ fontSize: 12 }}>
-                    📅 {new Date(event.event_date).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}
-                    &nbsp; 📍 {event.location}
+                    📅 {fmt(event.event_date)} &nbsp; 📍 {event.location}
                 </div>
 
                 <div className="d-grid gap-2 mt-auto">
                     <Button
                         size="sm" className="rounded-pill"
-                        style={{ background: 'linear-gradient(135deg,#6a11cb,#2575fc)', border: 'none', fontSize: 12 }}
+                        style={{ background: 'linear-gradient(135deg,#6a11cb,#2575fc)', border: 'none', fontSize: 11 }}
                         onClick={() => navigate(`/faculty/approvals/${event.id}`)}
                     >
-                        📋 Approvals & Registrations
+                        📋 Approvals
                     </Button>
+                    <div className="d-flex gap-2">
+                        <Button
+                            size="sm" variant="outline-success" className="rounded-pill w-100" style={{ fontSize: 11 }}
+                            onClick={() => navigate(`/faculty/attendance/${event.id}`)}
+                        >
+                            📍 Attendance
+                        </Button>
+                        <Button
+                            size="sm" variant="outline-primary" className="rounded-pill w-100" style={{ fontSize: 11 }}
+                            onClick={() => onViewParticipants(event)}
+                        >
+                            👥 Participants
+                        </Button>
+                    </div>
                     <Button
-                        size="sm" variant="outline-success" className="rounded-pill" style={{ fontSize: 12 }}
-                        onClick={() => navigate(`/faculty/attendance/${event.id}`)}
-                    >
-                        📍 Attendance
-                    </Button>
-                    <Button
-                        size="sm" variant="outline-primary" className="rounded-pill" style={{ fontSize: 12 }}
-                        onClick={() => onViewParticipants(event)}
-                    >
-                        👥 View Participants
-                    </Button>
-                    <Button
-                        size="sm" variant="outline-dark" className="rounded-pill" style={{ fontSize: 12 }}
+                        size="sm" variant="outline-dark" className="rounded-pill" style={{ fontSize: 11 }}
                         onClick={() => navigate(`/events/${event.id}`)}
                     >
-                         🔗 View Full Details
+                         🔗 Full Details
                     </Button>
                 </div>
             </Card.Body>
@@ -298,19 +350,11 @@ const FacultyDashboard = () => {
             {error && <Alert variant="danger" dismissible onClose={() => setError(null)}>{error}</Alert>}
 
             {/* ── Stat Cards ── */}
-            <Row className="mb-4 g-3">
-                <Col xs={6} xl={3}>
-                    <StatCard label="Assigned Events"  value={events.length}    icon="📅" gradient="linear-gradient(135deg,#6a11cb,#2575fc)" loading={loading} />
-                </Col>
-                <Col xs={6} xl={3}>
-                    <StatCard label="Pending Approvals" value={pendingRegs}     icon="⏳" gradient="linear-gradient(135deg,#f093fb,#f5576c)" loading={loading} />
-                </Col>
-                <Col xs={6} xl={3}>
-                    <StatCard label="Approved"          value={approvedRegs}    icon="✅" gradient="linear-gradient(135deg,#11998e,#38ef7d)" loading={loading} />
-                </Col>
-                <Col xs={6} xl={3}>
-                    <StatCard label="Pending Budgets"   value={pendingBudgets}  icon="💰" gradient="linear-gradient(135deg,#fa709a,#fee140)" loading={loading} />
-                </Col>
+            <Row className="mb-4">
+                <StatCard label="Assigned Events"  value={events.length}    icon="fa-calendar-check" color="#4e73df" loading={loading} />
+                <StatCard label="Pending Approvals" value={pendingRegs}     icon="fa-user-clock" color="#f6c23e" loading={loading} />
+                <StatCard label="Approved Students" value={approvedRegs}    icon="fa-user-check" color="#1cc88a" loading={loading} />
+                <StatCard label="Pending Budgets"   value={pendingBudgets}  icon="fa-wallet" color="#e74a3b" loading={loading} />
             </Row>
 
             {/* ── Quick Actions ── */}

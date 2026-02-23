@@ -16,18 +16,27 @@ const SummaryBar = ({ total, present, absent }) => {
     return (
         <Row className="mb-4 g-3">
             {[
-                { label: 'Total',      val: total,     icon: '📋', grad: 'linear-gradient(135deg,#6a11cb,#2575fc)' },
-                { label: 'Present',    val: present,   icon: '✅', grad: 'linear-gradient(135deg,#11998e,#38ef7d)' },
-                { label: 'Absent',     val: absent,    icon: '❌', grad: 'linear-gradient(135deg,#f5576c,#f093fb)' },
-                { label: 'Not Marked', val: notMarked, icon: '❓', grad: 'linear-gradient(135deg,#fa709a,#fee140)' },
+                { label: 'Total Approved', val: total,     icon: 'fa-users',         color: '#4e73df' },
+                { label: 'Total Present',  val: present,   icon: 'fa-check-circle',  color: '#1cc88a' },
+                { label: 'Total Absent',   val: absent,    icon: 'fa-times-circle',  color: '#e74a3b' },
+                { label: 'Yet to Mark',    val: notMarked, icon: 'fa-question-circle',color: '#f6c23e' },
             ].map(s => (
                 <Col xs={6} lg={3} key={s.label}>
-                    <Card className="border-0 shadow-sm" style={{ borderRadius: 12, overflow: 'hidden' }}>
-                        <div style={{ background: s.grad, padding: '14px 18px' }}>
-                            <div style={{ fontSize: 26 }}>{s.icon}</div>
-                            <div className="text-white fw-bold mt-1" style={{ fontSize: 26 }}>{s.val}</div>
-                            <div className="text-white-50" style={{ fontSize: 12 }}>{s.label}</div>
-                        </div>
+                    <Card className="shadow-sm h-100 py-2 border-0"
+                        style={{ borderLeft: `4px solid ${s.color}`, borderRadius: 12 }}>
+                        <Card.Body>
+                            <Row className="align-items-center g-0">
+                                <Col>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: s.color, textTransform: 'uppercase', letterSpacing: 1 }}>
+                                        {s.label}
+                                    </div>
+                                    <div className="h4 mb-0 fw-bold text-gray-800 mt-1">{s.val}</div>
+                                </Col>
+                                <Col xs="auto">
+                                    <i className={`fas ${s.icon} fa-2x`} style={{ color: '#eaecf4' }}></i>
+                                </Col>
+                            </Row>
+                        </Card.Body>
                     </Card>
                 </Col>
             ))}
@@ -107,7 +116,7 @@ const Attendance = () => {
                 delete next[studentId];
                 return next;
             });
-            setAlert({ variant: 'danger', msg: 'Failed to save attendance. Please try again.' });
+            setAlert({ variant: 'danger', msg: err.response?.data?.detail || 'Failed to save attendance. Please try again.' });
         } finally {
             setMarkingId(null);
         }
@@ -280,6 +289,8 @@ const Attendance = () => {
                                                             color: status === 'PRESENT' ? '#fff' : '#28a745',
                                                             fontWeight: 700,
                                                         }}
+                                                        disabled={!!status || isMarking}
+                                                        title={status ? "Attendance already marked and cannot be changed" : ""}
                                                         onClick={() => handleMark(p.student_id, 'PRESENT')}
                                                     >
                                                         P
@@ -294,6 +305,8 @@ const Attendance = () => {
                                                             color: status === 'ABSENT' ? '#fff' : '#dc3545',
                                                             fontWeight: 700,
                                                         }}
+                                                        disabled={!!status || isMarking}
+                                                        title={status ? "Attendance already marked and cannot be changed" : ""}
                                                         onClick={() => handleMark(p.student_id, 'ABSENT')}
                                                     >
                                                         A

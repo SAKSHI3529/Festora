@@ -118,7 +118,7 @@ async def get_team(id: str, db=Depends(get_database), current_user: User = Depen
         raise HTTPException(status_code=404, detail="Team not found")
 
     # Access Control: Admin, Faculty, or Team Member
-    if current_user.role not in [UserRole.ADMIN, UserRole.FACULTY]:
+    if current_user.role not in [UserRole.ADMIN, UserRole.FACULTY, UserRole.EVENT_COORDINATOR]:
         # Check if user is leader or member
         is_leader = team["leader_id"] == current_user.id
         is_member = current_user.id in team["member_ids"]
