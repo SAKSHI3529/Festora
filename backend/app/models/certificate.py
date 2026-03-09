@@ -11,6 +11,7 @@ class Certificate(BaseModel):
     id: Optional[str] = Field(None, alias="_id")
     event_id: str
     student_id: str
+    student_name: Optional[str] = None
     certificate_type: CertificateType
     rank: Optional[int] = None # 1, 2, 3 for winners
     certificate_url: str

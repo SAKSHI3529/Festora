@@ -8,6 +8,11 @@ from app.models.event import EventStatus
 from app.models.budget import Budget, BudgetStatus
 from app.schemas.budget import BudgetCreate, BudgetResponse, BudgetApprove
 from app.dependencies.rbac import RoleChecker, get_current_user
+from app.services.email_service import (
+    send_budget_request_email,
+    send_budget_approved_email,
+    send_budget_rejected_email
+)
 
 router = APIRouter()
 
@@ -74,6 +79,16 @@ async def create_budget(budget_in: BudgetCreate, db=Depends(get_database), curre
             description=f"Requested budget for event: {event['title']}",
             db=db
         )
+        
+        # Email Notification to Admin (Async)
+        admin = await db["users"].find_one({"role": UserRole.ADMIN})
+        if admin and admin.get("email"):
+            await send_budget_request_email(
+                admin["email"],
+                current_user.full_name,
+                budget_in.requested_amount,
+                budget_in.description
+            )
         
         return BudgetResponse(**created_budget)
     except HTTPException:
@@ -171,6 +186,15 @@ async def approve_budget(id: str, approval: BudgetApprove, db=Depends(get_databa
         description=f"Approved budget request: {budget.get('description', '')}",
         db=db
     )
+    
+    # Email Notification to Faculty (Async)
+    faculty = await db["users"].find_one({"_id": ObjectId(budget["requested_by"])})
+    if faculty and faculty.get("email"):
+        await send_budget_approved_email(
+            faculty["email"],
+            faculty["full_name"],
+            approval.approved_amount
+        )
     updated = await db["budgets"].find_one(qf)
     updated["_id"] = str(updated["_id"])
     updated["id"]  = updated["_id"]
@@ -205,6 +229,15 @@ async def reject_budget(id: str, db=Depends(get_database), current_user: User = 
         description=f"Rejected budget request: {budget.get('description', '')}",
         db=db
     )
+    
+    # Email Notification to Faculty (Async)
+    faculty = await db["users"].find_one({"_id": ObjectId(budget["requested_by"])})
+    if faculty and faculty.get("email"):
+        await send_budget_rejected_email(
+            faculty["email"],
+            faculty["full_name"],
+            budget["requested_amount"]
+        )
     updated = await db["budgets"].find_one(qf)
     updated["_id"] = str(updated["_id"])
     updated["id"]  = updated["_id"]

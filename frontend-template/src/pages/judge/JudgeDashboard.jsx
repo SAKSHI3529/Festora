@@ -93,25 +93,46 @@ const EventCard = ({ event, navigate }) => {
                     </div>
 
                     <div className="mt-auto">
-                        {isLocked && (
-                            <div className="text-center mb-2">
-                                <Badge bg="dark" className="px-3 py-2" style={{ fontSize: 11 }}>🔒 Results Locked</Badge>
+                        {isLocked ? (
+                            <div className="d-grid gap-2">
+                                <Button 
+                                    variant="success" 
+                                    className="rounded-pill"
+                                    style={{ 
+                                        background: 'linear-gradient(135deg,#1cc88a,#13855c)',
+                                        border: 'none',
+                                        fontWeight: 600,
+                                        fontSize: 13
+                                    }}
+                                    onClick={() => navigate(`/judge/results/${event.id}`)}
+                                >
+                                    🏆 View Results
+                                </Button>
+                                <Button 
+                                    variant="secondary" 
+                                    className="rounded-pill"
+                                    style={{ fontSize: 13 }}
+                                    disabled
+                                >
+                                    Scoring Closed
+                                </Button>
                             </div>
+                        ) : (
+                            <Button 
+                                variant={canScore ? "primary" : "secondary"} 
+                                className="w-100 rounded-pill"
+                                style={{ 
+                                    background: canScore ? 'linear-gradient(135deg,#6a11cb,#2575fc)' : '#6c757d',
+                                    border: 'none',
+                                    fontWeight: 600,
+                                    fontSize: 13
+                                }}
+                                disabled={!canScore}
+                                onClick={() => navigate(`/judge/score/${event.id}`)}
+                            >
+                                {isOngoing ? "Score Now →" : `Upcoming Event`}
+                            </Button>
                         )}
-                        <Button 
-                            variant={canScore ? "primary" : "secondary"} 
-                            className="w-100 rounded-pill"
-                            style={{ 
-                                background: canScore ? 'linear-gradient(135deg,#6a11cb,#2575fc)' : '#6c757d',
-                                border: 'none',
-                                fontWeight: 600,
-                                fontSize: 13
-                            }}
-                            disabled={!canScore}
-                            onClick={() => navigate(`/judge/score/${event.id}`)}
-                        >
-                            {isLocked ? "Scoring Closed" : isOngoing ? "Score Now →" : `Upcoming Event`}
-                        </Button>
                     </div>
                 </Card.Body>
             </Card>

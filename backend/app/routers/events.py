@@ -9,6 +9,7 @@ from app.models.user import User, UserRole
 from app.models.event import Event, EventStatus, EventType
 from app.schemas.event import EventCreate, EventUpdate, EventResponse
 from app.dependencies.rbac import RoleChecker, get_current_user
+from app.services.email_service import send_results_published_email
 
 router = APIRouter()
 
@@ -187,6 +188,19 @@ async def update_event(id: str, event_update: EventUpdate, db=Depends(get_databa
             description=f"Updated event: {event['title']}. Changes: {', '.join(update_data.keys())}",
             db=db
         )
+        
+        # Result Locking Notification (Async)
+        if update_data.get("is_result_locked") and not event.get("is_result_locked"):
+            # Fetch all approved participants
+            regs = await db["registrations"].find({"event_id": id, "status": "APPROVED"}).to_list(None)
+            for reg in regs:
+                student = await db["users"].find_one({"_id": ObjectId(reg["student_id"])})
+                if student and student.get("email"):
+                    await send_results_published_email(
+                        student["email"],
+                        student["full_name"],
+                        event["title"]
+                    )
     
     updated_event = await db["events"].find_one({"_id": ObjectId(id)})
     updated_event["_id"] = str(updated_event["_id"])

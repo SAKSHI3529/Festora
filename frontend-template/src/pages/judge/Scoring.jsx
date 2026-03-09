@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Container, Button, Alert, Badge, Table, Form } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getEvent } from '../../api/events';
-import { submitScore, getEventParticipants, getEventTeams } from '../../api/scores';
+import { submitScore, getEventParticipants, getEventTeams, getMyScores, updateScore } from '../../api/scores';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const Scoring = () => {
@@ -13,8 +13,9 @@ const Scoring = () => {
     const [participants, setParticipants] = useState([]); // Or teams
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [scores, setScores] = useState({}); // Local state for inputs: { id: score }
-    const [submitting, setSubmitting] = useState({}); // { id: boolean }
+    const [scores, setScores] = useState({}); 
+    const [submittedScores, setSubmittedScores] = useState({}); // { entityId: scoreObject }
+    const [submitting, setSubmitting] = useState({}); 
     const [successMsg, setSuccessMsg] = useState('');
 
     useEffect(() => {
@@ -23,16 +24,27 @@ const Scoring = () => {
 
     const fetchData = async () => {
         try {
-            const eventData = await getEvent(eventId);
-            setEvent({ ...eventData, id: eventData.id || eventData._id });
+            const [eventData, myScoresData] = await Promise.all([
+                getEvent(eventId),
+                getMyScores(eventId)
+            ]);
+            
+            const normalizedEvent = { ...eventData, id: eventData.id || eventData._id };
+            setEvent(normalizedEvent);
 
-            if (eventData.event_type === 'SOLO') {
+            // Map existing scores
+            const scoreMap = {};
+            const submittedMap = {};
+            myScoresData.forEach(s => {
+                const targetId = s.registration_id || s.team_id;
+                scoreMap[targetId] = s.score;
+                submittedMap[targetId] = s;
+            });
+            setScores(scoreMap);
+            setSubmittedScores(submittedMap);
+
+            if (normalizedEvent.event_type === 'SOLO') {
                 const parts = await getEventParticipants(eventId);
-                // Filter only Approved?
-                // Backend get_participants returns all registrations.
-                // We should filter client side or trust backend to optimize later.
-                // Requirement says "GET approved registrations".
-                // Let's filter.
                 setParticipants(parts.filter(p => p.status === 'APPROVED'));
             } else {
                 const teams = await getEventTeams(eventId);
@@ -62,48 +74,33 @@ const Scoring = () => {
 
         setSubmitting({ ...submitting, [entityId]: true });
         try {
-            const payload = {
-                event_id: eventId,
-                score: parseFloat(scoreVal),
-                // Solo has participant ID (registration ID needed?), Group has Team ID.
-                // Wait. getEventParticipants returns flattened object?
-                // Let's check get_participants in events.py (Step 1463).
-                // It returns { student_name, registration_number, team_name, status ... } but NO ID!
-                // Ah, get_participants in events.py does NOT include _id or registration_id in $project!
-                // Major Bug! I need to fix get_participants to include registration_id (for solo) and team_id (usually redundant but good to have)
-                // Actually, for SOLO, `get_participants` uses `registrations` collection. the `_id` of the document IS the `registration_id`.
-                // But `$project` sets `_id: 0`.
-                // I need to fix backend `events.py` `get_participants`!
-                
-                // For TEAM, `getTeam` returns `id`. `getEventTeams` uses `find()` so it has `id`.
-                
-                // I will add a fix step for backend events.py to return IDs.
-            };
-            
-            if (event.event_type === 'SOLO') {
-                 // Pending Fix: We need registration ID here.
-                 // Assuming I fix backend to return 'id' (registration id).
-                 // Use temporary placeholder logic or assumption that entityId IS the id.
-                 payload.registration_id = entityId; 
+            const existing = submittedScores[entityId];
+            if (existing) {
+                // Update
+                const updated = await updateScore(existing.id, {
+                    score: parseFloat(scoreVal)
+                });
+                setSubmittedScores({ ...submittedScores, [entityId]: updated });
+                setSuccessMsg("Score updated successfully");
             } else {
-                 payload.team_id = entityId;
-            }
+                // Create
+                const payload = {
+                    event_id: eventId,
+                    score: parseFloat(scoreVal)
+                };
+                
+                if (event.event_type === 'SOLO') {
+                     payload.registration_id = entityId; 
+                } else {
+                     payload.team_id = entityId;
+                }
 
-            await submitScore(payload);
-            setSuccessMsg("Score submitted successfully");
-            
-            // Mark as scored locally? 
-            // Ideally backend returns "is_scored" flag per participant?
-            // Current backend schemas don't seem to pass "my_score" back in list.
-            // Judge might accidentally score twice? Backend returns 409 Conflict.
-            // We should catch 409 and show "Already Scored".
-            
-        } catch (err) {
-            if (err.response?.status === 409) {
-                 alert("You have already scored this participant.");
-            } else {
-                 alert(err.response?.data?.detail || "Submission failed");
+                const created = await submitScore(payload);
+                setSubmittedScores({ ...submittedScores, [entityId]: created });
+                setSuccessMsg("Score submitted successfully");
             }
+        } catch (err) {
+            alert(err.response?.data?.detail || "Submission failed");
         } finally {
             setSubmitting({ ...submitting, [entityId]: false });
         }
@@ -179,16 +176,17 @@ const Scoring = () => {
                                             max="100"
                                             value={scores[p.id] || ''}
                                             onChange={(e) => handleScoreChange(p.id, e.target.value)}
+                                            disabled={event.status !== 'ONGOING' || event.is_result_locked}
                                         />
                                     </td>
                                     <td>
                                         <Button 
-                                            variant="primary" 
+                                            variant={submittedScores[p.id] ? "success" : "primary"} 
                                             size="sm" 
                                             onClick={() => handleSubmit(p.id)}
-                                            disabled={submitting[p.id]}
+                                            disabled={submitting[p.id] || event.status !== 'ONGOING' || event.is_result_locked}
                                         >
-                                            {submitting[p.id] ? 'Saving...' : 'Save'}
+                                            {submitting[p.id] ? 'Saving...' : (submittedScores[p.id] ? 'Update' : 'Save')}
                                         </Button>
                                     </td>
                                 </tr>

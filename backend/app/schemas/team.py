@@ -13,6 +13,7 @@ class TeamBase(BaseModel):
 
 class TeamResponse(TeamBase):
     id: str
+    leader_name: Optional[str] = None
     created_at: datetime
 
     class Config:

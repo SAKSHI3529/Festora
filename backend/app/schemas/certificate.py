@@ -7,6 +7,8 @@ class CertificateResponse(BaseModel):
     id: str
     event_id: str
     student_id: str
+    student_name: Optional[str] = None
+    event_title: Optional[str] = None
     certificate_type: CertificateType
     rank: Optional[int] = None
     certificate_url: str

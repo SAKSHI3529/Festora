@@ -36,3 +36,14 @@ class ScoreResponse(BaseModel):
 
     class Config:
         populate_by_name = True
+
+class ScoreUpdate(BaseModel):
+    score: float
+    remarks: Optional[str] = None
+
+    @root_validator(pre=True)
+    def check_score(cls, values):
+        score = values.get('score')
+        if score is not None and score < 0:
+            raise ValueError('Score cannot be negative')
+        return values

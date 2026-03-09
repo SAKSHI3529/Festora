@@ -12,7 +12,11 @@ class RegistrationResponse(BaseModel):
     id: str
     event_id: str
     student_id: str
+    student_name: Optional[str] = None
+    registration_number: Optional[str] = None
+    department: Optional[str] = None
     team_id: Optional[str] = None
+    team_name: Optional[str] = None
     status: RegistrationStatus
     registered_at: datetime
     approved_by: Optional[str] = None

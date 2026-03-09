@@ -22,8 +22,11 @@ class Event(BaseModel):
     event_date: datetime
     registration_deadline: datetime
     location: str
+    time_slot: Optional[str] = None
     status: EventStatus = EventStatus.SCHEDULED
     is_result_locked: bool = False
+    reminder_24h_sent: bool = False
+    reminder_start_sent: bool = False
     
     faculty_coordinator_id: str
     event_coordinator_ids: List[str] = []

@@ -10,6 +10,11 @@ from app.models.team import Team, TeamStatus
 from app.schemas.registration import RegistrationCreate, RegistrationResponse
 from app.schemas.team import TeamResponse
 from app.dependencies.rbac import RoleChecker, get_current_user
+from app.services.email_service import (
+    send_registration_submitted_email,
+    send_registration_approved_email,
+    send_registration_rejected_email
+)
 
 router = APIRouter()
 
@@ -72,6 +77,16 @@ async def create_registration(
             ref_id=created_reg["id"],
             description=f"Registered for event: {event['title']}",
             db=db
+        )
+        
+        # Email Notification (Async)
+        await send_registration_submitted_email(
+            current_user.email,
+            current_user.full_name,
+            event["title"],
+            event["event_date"].strftime("%Y-%m-%d %H:%M"),
+            event["location"],
+            event.get("time_slot")
         )
         
         return RegistrationResponse(**created_reg)
@@ -159,6 +174,19 @@ async def create_registration(
             db=db
         )
         
+        # Email Notification for all members (Async)
+        for member_id in all_member_ids_list:
+            member = await db["users"].find_one({"_id": ObjectId(member_id)})
+            if member and member.get("email"):
+                await send_registration_submitted_email(
+                    member["email"],
+                    member["full_name"],
+                    event["title"],
+                    event["event_date"].strftime("%Y-%m-%d %H:%M"),
+                    event["location"],
+                    event.get("time_slot")
+                )
+        
         return TeamResponse(**created_team)
 
 @router.put("/{id}/approve", dependencies=[Depends(allow_approve_reject)])
@@ -199,6 +227,19 @@ async def approve_registration(id: str, db=Depends(get_database), current_user: 
         description=f"Approved registration for student {reg['student_id']}",
         db=db
     )
+    
+    # Email Notification
+    student = await db["users"].find_one({"_id": ObjectId(reg["student_id"])})
+    event = await db["events"].find_one({"_id": ObjectId(reg["event_id"])})
+    if student and event:
+        await send_registration_approved_email(
+            student["email"],
+            student["full_name"],
+            event["title"],
+            event["event_date"].strftime("%Y-%m-%d %H:%M"),
+            event["location"],
+            event.get("time_slot")
+        )
     
     return {"message": "Registration approved"}
 
@@ -241,6 +282,16 @@ async def reject_registration(id: str, db=Depends(get_database), current_user: U
         db=db
     )
     
+    # Email Notification
+    student = await db["users"].find_one({"_id": ObjectId(reg["student_id"])})
+    event = await db["events"].find_one({"_id": ObjectId(reg["event_id"])})
+    if student and event:
+        await send_registration_rejected_email(
+            student["email"],
+            student["full_name"],
+            event["title"]
+        )
+    
     return {"message": "Registration rejected"}
 
 allow_view_registrations = RoleChecker([UserRole.ADMIN, UserRole.FACULTY, UserRole.EVENT_COORDINATOR])
@@ -254,16 +305,40 @@ async def get_event_registrations(event_id: str, db=Depends(get_database), curre
         
     registrations = await db["registrations"].find({"event_id": event_id}).to_list(1000)
     for reg in registrations:
-        reg["_id"] = str(reg["_id"])
-        reg["id"] = reg["_id"]
+        reg["id"] = str(reg["_id"])
+        
+        # Enrich Student Data
+        student = await db["users"].find_one({"_id": ObjectId(reg["student_id"])})
+        if student:
+            reg["student_name"] = student.get("full_name")
+            reg["registration_number"] = student.get("registration_number")
+            reg["department"] = student.get("department")
+            
+        # Enrich Team Data
+        if reg.get("team_id"):
+            team = await db["teams"].find_one({"_id": ObjectId(reg["team_id"])})
+            if team:
+                reg["team_name"] = team.get("team_name")
+                
     return registrations
 
 @router.get("/my", response_model=List[RegistrationResponse], dependencies=[Depends(allow_create_registration)])
 async def get_my_registrations(db=Depends(get_database), current_user: User = Depends(get_current_user)):
     registrations = await db["registrations"].find({"student_id": current_user.id}).to_list(1000)
     for reg in registrations:
-        reg["_id"] = str(reg["_id"])
-        reg["id"] = reg["_id"]
+        reg["id"] = str(reg["_id"])
+        
+        # Enrich Student Data (already have current_user but for consistency)
+        reg["student_name"] = current_user.full_name
+        reg["registration_number"] = current_user.registration_number
+        reg["department"] = current_user.department
+        
+        # Enrich Team Data
+        if reg.get("team_id"):
+            team = await db["teams"].find_one({"_id": ObjectId(reg["team_id"])})
+            if team:
+                reg["team_name"] = team.get("team_name")
+                
     return registrations
 
 @router.get("/my-teams", dependencies=[Depends(allow_create_registration)])

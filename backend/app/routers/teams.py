@@ -9,6 +9,7 @@ from app.dependencies.rbac import RoleChecker, get_current_user
 from typing import List
 from app.schemas.team import TeamResponse
 from app.utils.audit import log_action, AuditAction, AuditModule
+from app.services.email_service import send_registration_approved_email, send_registration_rejected_email
 
 router = APIRouter()
 
@@ -58,6 +59,21 @@ async def approve_team(id: str, db=Depends(get_database), current_user: User = D
         description=f"Approved team {team['team_name']}",
         db=db
     )
+    
+    # Email Notification for all members (Async)
+    event = await db["events"].find_one({"_id": ObjectId(team["event_id"])})
+    if event:
+        for member_id in team["member_ids"]:
+            member = await db["users"].find_one({"_id": ObjectId(member_id)})
+            if member and member.get("email"):
+                await send_registration_approved_email(
+                    member["email"],
+                    member["full_name"],
+                    event["title"],
+                    event["event_date"].strftime("%Y-%m-%d %H:%M"),
+                    event["location"],
+                    event.get("time_slot")
+                )
 
     return {"message": "Team and members approved"}
 
@@ -105,6 +121,18 @@ async def reject_team(id: str, db=Depends(get_database), current_user: User = De
         description=f"Rejected team {team['team_name']}",
         db=db
     )
+    
+    # Email Notification for all members (Async)
+    event = await db["events"].find_one({"_id": ObjectId(team["event_id"])})
+    if event:
+        for member_id in team["member_ids"]:
+            member = await db["users"].find_one({"_id": ObjectId(member_id)})
+            if member and member.get("email"):
+                await send_registration_rejected_email(
+                    member["email"],
+                    member["full_name"],
+                    event["title"]
+                )
 
     return {"message": "Team and members rejected"}
 
@@ -126,8 +154,12 @@ async def get_team(id: str, db=Depends(get_database), current_user: User = Depen
         if not (is_leader or is_member):
              raise HTTPException(status_code=403, detail="Not authorized to view this team")
     
-    team["_id"] = str(team["_id"])
-    team["id"] = team["_id"]
+    team["id"] = str(team["_id"])
+    
+    # Enrich Leader Name
+    leader = await db["users"].find_one({"_id": ObjectId(team["leader_id"])})
+    team["leader_name"] = leader.get("full_name") if leader else "Unknown"
+    
     return team
 
 @router.get("/events/{event_id}", response_model=List[TeamResponse])
@@ -137,6 +169,10 @@ async def get_event_teams(event_id: str, db=Depends(get_database), current_user:
         
     teams = await db["teams"].find({"event_id": event_id}).to_list(1000)
     for team in teams:
-        team["_id"] = str(team["_id"])
-        team["id"] = team["_id"]
+        team["id"] = str(team["_id"])
+        
+        # Enrich Leader Name
+        leader = await db["users"].find_one({"_id": ObjectId(team["leader_id"])})
+        team["leader_name"] = leader.get("full_name") if leader else "Unknown"
+        
     return teams

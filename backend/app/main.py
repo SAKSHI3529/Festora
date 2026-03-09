@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.routers import auth
 from app.core.db import db as database
+from app.tasks.reminder_scheduler import start_scheduler
 
 app = FastAPI(title="Festora API")
 
@@ -49,6 +50,9 @@ async def startup_db_client():
     await db["registrations"].create_index("student_id")
     await db["teams"].create_index("event_id")
     await db["teams"].create_index([("event_id", 1), ("team_name", 1)], unique=True)
+    
+    # Start Reminder Scheduler
+    start_scheduler()
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

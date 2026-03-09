@@ -10,6 +10,7 @@ from app.models.registration import RegistrationStatus
 from app.models.certificate import Certificate, CertificateType
 from app.schemas.certificate import CertificateResponse
 from app.dependencies.rbac import RoleChecker, get_current_user
+from app.services.email_service import send_certificate_generated_email
 
 # ReportLab imports
 from reportlab.lib.pagesizes import letter, landscape
@@ -160,13 +161,27 @@ async def generate_certificates(id: str, db=Depends(get_database), current_user:
             cert = Certificate(
                 event_id=id,
                 student_id=student_id,
+                student_name=student_name,
                 certificate_type=CertificateType.WINNER,
                 rank=rank,
                 certificate_url=f"/uploads/certificates/{filename}",
                 generated_by=current_user.id
             )
-            await db["certificates"].insert_one(cert.dict(by_alias=True))
+            cert_dict = cert.dict(by_alias=True)
+            if "_id" in cert_dict and cert_dict["_id"] is None:
+                del cert_dict["_id"]
+            await db["certificates"].insert_one(cert_dict)
             generated_count += 1
+            
+            # Send Email
+            student = await db["users"].find_one({"_id": ObjectId(student_id)})
+            if student and student.get("email"):
+                await send_certificate_generated_email(
+                    student["email"],
+                    student_name,
+                    event["title"],
+                    f"/uploads/certificates/{filename}"
+                )
             
         elif event["event_type"] == EventType.GROUP:
              member_ids = winner.get("member_ids", [])
@@ -182,13 +197,27 @@ async def generate_certificates(id: str, db=Depends(get_database), current_user:
                     cert = Certificate(
                         event_id=id,
                         student_id=str(member_id),
+                        student_name=student_name,
                         certificate_type=CertificateType.WINNER,
                         rank=rank,
                         certificate_url=f"/uploads/certificates/{filename}",
                         generated_by=current_user.id
                     )
-                    await db["certificates"].insert_one(cert.dict(by_alias=True))
+                    cert_dict = cert.dict(by_alias=True)
+                    if "_id" in cert_dict and cert_dict["_id"] is None:
+                        del cert_dict["_id"]
+                    await db["certificates"].insert_one(cert_dict)
                     generated_count += 1
+                    
+                    # Send Email
+                    member = await db["users"].find_one({"_id": ObjectId(member_id)})
+                    if member and member.get("email"):
+                        await send_certificate_generated_email(
+                            member["email"],
+                            student_name,
+                            event["title"],
+                            f"/uploads/certificates/{filename}"
+                        )
                     
     # 2. Fetch Participants (Approved)
     # Exclude winners? Usually yes, or winners get both?
@@ -227,12 +256,26 @@ async def generate_certificates(id: str, db=Depends(get_database), current_user:
                      cert = Certificate(
                         event_id=id,
                         student_id=student_id,
+                        student_name=student_name,
                         certificate_type=CertificateType.PARTICIPATION,
                         certificate_url=f"/uploads/certificates/{filename}",
                         generated_by=current_user.id
                     )
-                     await db["certificates"].insert_one(cert.dict(by_alias=True))
+                     cert_dict = cert.dict(by_alias=True)
+                     if "_id" in cert_dict and cert_dict["_id"] is None:
+                         del cert_dict["_id"]
+                     await db["certificates"].insert_one(cert_dict)
                      generated_count += 1
+                     
+                     # Send Email
+                     student = await db["users"].find_one({"_id": ObjectId(student_id)})
+                     if student and student.get("email"):
+                        await send_certificate_generated_email(
+                            student["email"],
+                            student_name,
+                            event["title"],
+                            f"/uploads/certificates/{filename}"
+                        )
     
     # Log Action
     await log_action(
@@ -254,22 +297,37 @@ async def get_my_certificates(db=Depends(get_database), current_user: User = Dep
         
     certs = await db["certificates"].find({"student_id": current_user.id}).to_list(None)
     for c in certs:
-        c["_id"] = str(c["_id"])
-        c["id"] = c["_id"]
+        c["id"] = str(c["_id"])
+        
+        # Enrich Student Name if missing
+        if not c.get("student_name"):
+            c["student_name"] = current_user.full_name
+        
+        # Enrich Event Title
+        event = await db["events"].find_one({"_id": ObjectId(c["event_id"])})
+        c["event_title"] = event.get("title") if event else "Unknown Event"
+        
     return certs
 
 @router.get("/events/{id}", response_model=List[CertificateResponse], dependencies=[Depends(allow_view_certificates)])
 async def get_event_certificates(id: str, db=Depends(get_database), current_user: User = Depends(get_current_user)):
-    # Student should only see own? Or all? Requirement says "Role: ADMIN, FACULTY" for this endpoint.
-    # Students use /my.
     if current_user.role == UserRole.STUDENT:
          raise HTTPException(status_code=403, detail="Students should use /certificates/my")
          
     if not ObjectId.is_valid(id):
         raise HTTPException(status_code=400, detail="Invalid ID")
         
+    event = await db["events"].find_one({"_id": ObjectId(id)})
+    event_title = event.get("title") if event else "Unknown Event"
+
     certs = await db["certificates"].find({"event_id": id}).to_list(None)
     for c in certs:
-        c["_id"] = str(c["_id"])
-        c["id"] = c["_id"]
+        c["id"] = str(c["_id"])
+        c["event_title"] = event_title
+        
+        # Enrich Student Name if missing or ID is present
+        if not c.get("student_name") or c.get("student_name") == "Unknown Student":
+            student = await db["users"].find_one({"_id": ObjectId(c["student_id"])})
+            c["student_name"] = student.get("full_name") if student else "Unknown Student"
+        
     return certs

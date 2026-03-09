@@ -267,10 +267,17 @@ const StudentEvents = () => {
 
                         <div className="mb-3">
                             <div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                Event Date & Location
+                                Event Date & Timing
                             </div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
-                                📅 {fmt(event.event_date)}
+                            <div className="d-flex align-items-center gap-3">
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+                                    📅 {fmt(event.event_date)}
+                                </div>
+                                {event.time_slot && (
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+                                        🕒 {event.time_slot}
+                                    </div>
+                                )}
                             </div>
                             <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
                                 📍 {event.location}
@@ -442,13 +449,23 @@ const StudentEvents = () => {
                                     onChange={(e) => setMemberSearchTerm(e.target.value)} 
                                 />
                             </div>
+                            <div className="d-flex justify-content-between align-items-center mb-1">
+                                <span className="text-muted" style={{ fontSize: 11 }}>
+                                    {selectedMembers.length + 1} / {selectedEvent?.max_team_size || 10} members selected
+                                </span>
+                                {selectedMembers.length + 1 >= (selectedEvent?.max_team_size || 10) && (
+                                    <Badge bg="warning" text="dark" style={{ fontSize: 10 }}>Max limit reached</Badge>
+                                )}
+                            </div>
                             <Form.Select 
                                 multiple 
                                 value={selectedMembers} 
                                 onChange={(e) => {
                                     const options = [...e.target.selectedOptions];
                                     const values = options.map(option => option.value);
-                                    if (values.length < (selectedEvent?.max_team_size || 10)) {
+                                    const maxAllowed = (selectedEvent?.max_team_size || 10) - 1; // -1 for leader
+                                    
+                                    if (values.length <= maxAllowed) {
                                          setSelectedMembers(values);
                                     }
                                 }}
@@ -463,11 +480,7 @@ const StudentEvents = () => {
                                     ))
                                 ) : (
                                     <option disabled>No students found</option>
-                                ) || studentList.map(s => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.full_name} ({s.registration_number})
-                                    </option>
-                                ))}
+                                )}
                             </Form.Select>
                             <Form.Text className="text-muted mt-2 d-block small">
                                 <i className="fas fa-info-circle me-1"></i> Hold <b>Ctrl / Cmd</b> to select multiple members. 

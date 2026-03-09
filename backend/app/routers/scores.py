@@ -7,7 +7,7 @@ from app.models.event import EventStatus, EventType
 from app.models.registration import RegistrationStatus
 from app.models.team import TeamStatus
 from app.models.score import Score
-from app.schemas.score import ScoreCreate, ScoreResponse
+from app.schemas.score import ScoreCreate, ScoreResponse, ScoreUpdate
 from app.dependencies.rbac import RoleChecker, get_current_user
 
 router = APIRouter()
@@ -122,6 +122,73 @@ async def submit_score(score_in: ScoreCreate, db=Depends(get_database), current_
     )
     
     return ScoreResponse(**created_score)
+
+@router.get("/{event_id}/my-scores", response_model=list[ScoreResponse])
+async def get_my_scores(event_id: str, db=Depends(get_database), current_user: User = Depends(get_current_user)):
+    # Judges can only see their own scores
+    scores = await db["scores"].find({
+        "event_id": event_id,
+        "judge_id": current_user.id
+    }).to_list(None)
+    
+    for score in scores:
+        score["_id"] = str(score["_id"])
+        score["id"] = score["_id"]
+        
+    return scores
+
+@router.put("/{score_id}", response_model=ScoreResponse)
+async def update_score(score_id: str, score_update: ScoreUpdate, db=Depends(get_database), current_user: User = Depends(get_current_user)):
+    if not ObjectId.is_valid(score_id):
+        raise HTTPException(status_code=400, detail="Invalid Score ID")
+    
+    existing_score = await db["scores"].find_one({"_id": ObjectId(score_id)})
+    if not existing_score:
+        raise HTTPException(status_code=404, detail="Score not found")
+    
+    # Check Ownership
+    if existing_score["judge_id"] != current_user.id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="You can only edit your own scores")
+    
+    # Check Event Status & Lock
+    event = await db["events"].find_one({"_id": ObjectId(existing_score["event_id"])})
+    if not event:
+        raise HTTPException(status_code=404, detail="Associated event not found")
+        
+    if event["status"] != EventStatus.ONGOING:
+        raise HTTPException(status_code=400, detail="Scores can only be edited while event is ONGOING")
+    
+    if event.get("is_result_locked", False):
+        raise HTTPException(status_code=400, detail="Cannot edit scores because results are locked")
+
+    # Update
+    update_data = {
+        "score": score_update.score,
+        "remarks": score_update.remarks,
+        "updated_at": datetime.utcnow()
+    }
+    
+    await db["scores"].update_one(
+        {"_id": ObjectId(score_id)},
+        {"$set": update_data}
+    )
+    
+    updated_score = await db["scores"].find_one({"_id": ObjectId(score_id)})
+    updated_score["_id"] = str(updated_score["_id"])
+    updated_score["id"] = updated_score["_id"]
+    
+    # Log Action
+    await log_action(
+        user_id=current_user.id,
+        user_role=current_user.role,
+        action=AuditAction.UPDATE,
+        module=AuditModule.SCORES,
+        ref_id=score_id,
+        description=f"Updated score to {score_update.score} for event {event['title']}",
+        db=db
+    )
+    
+    return ScoreResponse(**updated_score)
 
 from app.schemas.result import EventResultResponse, ResultEntry
 

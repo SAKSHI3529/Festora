@@ -65,6 +65,7 @@ import CoordinatorParticipants from './pages/coordinator/CoordinatorParticipants
 // Judge Pages
 import JudgeDashboard from './pages/judge/JudgeDashboard';
 import Scoring from './pages/judge/Scoring';
+import JudgeResults from './pages/judge/JudgeResults';
 
 // Common
 import Profile from './pages/common/Profile';
@@ -198,6 +199,9 @@ function App() {
                         } />
                         <Route path="/judge/score/:eventId" element={
                             <ProtectedRoute roles={['judge']}><Scoring /></ProtectedRoute>
+                        } />
+                        <Route path="/judge/results/:eventId" element={
+                            <ProtectedRoute roles={['judge']}><JudgeResults /></ProtectedRoute>
                         } />
 
                         {/* Common */}

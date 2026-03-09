@@ -17,3 +17,21 @@ export const getEventTeams = async (eventId) => {
     const response = await api.get(`/teams/events/${eventId}`);
     return response.data;
 };
+
+// Get judge's own scores for an event
+export const getMyScores = async (eventId) => {
+    const response = await api.get(`/scores/${eventId}/my-scores`);
+    return response.data;
+};
+
+// Update an existing score
+export const updateScore = async (scoreId, data) => {
+    const response = await api.put(`/scores/${scoreId}`, data);
+    return response.data;
+};
+
+// Get results for an event
+export const getResults = async (eventId) => {
+    const response = await api.get(`/scores/${eventId}/results`);
+    return response.data;
+};

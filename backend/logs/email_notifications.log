@@ -1,0 +1,59 @@
+2026-03-09 14:20:30,113 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 14:20:30,114 - apscheduler.scheduler - INFO - Added job "check_and_send_reminders" to job store "default"
+2026-03-09 14:20:30,114 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-09 14:20:30,114 - ReminderScheduler - INFO - Reminder scheduler started (running every hour).
+2026-03-09 14:29:23,133 - EmailService - INFO - Email sent to student1@festora.com with subject: Festora Registration Submitted
+2026-03-09 14:29:26,183 - EmailService - INFO - Email sent to student2@festora.com with subject: Festora Registration Submitted
+2026-03-09 14:29:29,376 - EmailService - INFO - Email sent to sakshi3pune@email.com with subject: Festora Registration Submitted
+2026-03-09 14:31:49,095 - EmailService - INFO - Email sent to student_Vpp3mYuq@test.com with subject: Festora Registration Submitted
+2026-03-09 14:31:52,786 - EmailService - INFO - Email sent to sakshi3pune@gmail.com with subject: Festora Registration Submitted
+2026-03-09 14:31:56,819 - EmailService - INFO - Email sent to student2_nxRrU6sL@test.com with subject: Festora Registration Submitted
+2026-03-09 15:36:29,240 - apscheduler.executors.default - WARNING - Run time of job "check_and_send_reminders (trigger: interval[1:00:00], next run at: 2026-03-09 16:20:30 IST)" was missed by 0:15:59.065961
+2026-03-09 15:51:33,377 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 15:51:33,378 - apscheduler.scheduler - INFO - Added job "check_and_send_reminders" to job store "default"
+2026-03-09 15:51:33,379 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-09 15:51:33,379 - ReminderScheduler - INFO - Reminder scheduler started (running every hour).
+2026-03-09 15:53:59,721 - EmailService - INFO - Email sent to student3@festora.com with subject: Festora Registration Submitted
+2026-03-09 15:54:03,715 - EmailService - INFO - Email sent to student_H8BUhH0F@test.com with subject: Festora Registration Submitted
+2026-03-09 15:55:46,244 - EmailService - INFO - Email sent to sakshi3pune@gmail.com with subject: Festora Registration Submitted
+2026-03-09 15:55:50,528 - EmailService - INFO - Email sent to student1@festora.com with subject: Festora Registration Submitted
+2026-03-09 15:55:54,318 - EmailService - INFO - Email sent to student2@festora.com with subject: Festora Registration Submitted
+2026-03-09 15:56:27,207 - EmailService - INFO - Email sent to sakshi3pune@gmail.com with subject: Registration Approved - Festora
+2026-03-09 15:56:30,969 - EmailService - INFO - Email sent to student1@festora.com with subject: Registration Approved - Festora
+2026-03-09 15:56:34,722 - EmailService - INFO - Email sent to student2@festora.com with subject: Registration Approved - Festora
+2026-03-09 16:00:01,307 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 16:00:01,308 - apscheduler.scheduler - INFO - Added job "check_and_send_reminders" to job store "default"
+2026-03-09 16:00:01,308 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-09 16:00:01,309 - ReminderScheduler - INFO - Reminder scheduler started (running every hour).
+2026-03-09 16:00:16,215 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 16:00:16,223 - apscheduler.scheduler - INFO - Added job "check_and_send_reminders" to job store "default"
+2026-03-09 16:00:16,223 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-09 16:00:16,224 - ReminderScheduler - INFO - Reminder scheduler started (running every hour).
+2026-03-09 16:01:23,202 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 16:01:23,203 - apscheduler.scheduler - INFO - Added job "check_and_send_reminders" to job store "default"
+2026-03-09 16:01:23,204 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-09 16:01:23,204 - ReminderScheduler - INFO - Reminder scheduler started (running every hour).
+2026-03-09 16:02:03,404 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 16:02:03,407 - apscheduler.scheduler - INFO - Added job "check_and_send_reminders" to job store "default"
+2026-03-09 16:02:03,407 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-09 16:02:03,407 - ReminderScheduler - INFO - Reminder scheduler started (running every hour).
+2026-03-09 16:02:09,381 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 16:02:09,383 - apscheduler.scheduler - INFO - Added job "check_and_send_reminders" to job store "default"
+2026-03-09 16:02:09,383 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-09 16:02:09,383 - ReminderScheduler - INFO - Reminder scheduler started (running every hour).
+2026-03-09 16:02:22,027 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 16:02:22,028 - apscheduler.scheduler - INFO - Added job "check_and_send_reminders" to job store "default"
+2026-03-09 16:02:22,028 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-09 16:02:22,028 - ReminderScheduler - INFO - Reminder scheduler started (running every hour).
+2026-03-09 16:12:04,200 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 16:12:04,201 - apscheduler.scheduler - INFO - Added job "check_and_send_reminders" to job store "default"
+2026-03-09 16:12:04,201 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-09 16:12:04,201 - ReminderScheduler - INFO - Reminder scheduler started (running every hour).
+2026-03-09 16:12:14,335 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 16:12:14,336 - apscheduler.scheduler - INFO - Added job "check_and_send_reminders" to job store "default"
+2026-03-09 16:12:14,336 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-09 16:12:14,336 - ReminderScheduler - INFO - Reminder scheduler started (running every hour).
+2026-03-09 16:12:22,738 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 16:12:22,739 - apscheduler.scheduler - INFO - Added job "check_and_send_reminders" to job store "default"
+2026-03-09 16:12:22,739 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-09 16:12:22,739 - ReminderScheduler - INFO - Reminder scheduler started (running every hour).

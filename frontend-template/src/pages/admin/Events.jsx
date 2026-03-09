@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Row, Col, Button, Badge, Modal, Form, Table } from 'react-bootstrap';
 import { getEvents, createEvent, updateEvent, deleteEvent, uploadRulebook } from '../../api/events';
+import { getCategories } from '../../api/categories';
 import { getUsers } from '../../api/admin';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -11,11 +12,14 @@ const Events = () => {
     const [isEdit, setIsEdit] = useState(false);
     const [currentId, setCurrentId] = useState(null);
     const [submitLoading, setSubmitLoading] = useState(false);
+    const [startTime, setStartTime] = useState('');
+    const [endTime, setEndTime] = useState('');
 
     // Dropdown Data
     const [facultyList, setFacultyList] = useState([]);
     const [coordinatorList, setCoordinatorList] = useState([]);
     const [judgeList, setJudgeList] = useState([]);
+    const [categoryList, setCategoryList] = useState([]);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -31,6 +35,7 @@ const Events = () => {
         event_coordinator_ids: [],
         judge_ids: [],
         category: 'General',
+        time_slot: '',
         status: 'SCHEDULED'
     });
 
@@ -42,12 +47,13 @@ const Events = () => {
 
     const fetchData = async () => {
         try {
-            const [eventsData, usersData] = await Promise.all([getEvents(), getUsers()]);
+            const [eventsData, usersData, categoriesData] = await Promise.all([getEvents(), getUsers(), getCategories()]);
             setEvents(eventsData.map(e => ({ ...e, id: e.id || e._id })));
             
             setFacultyList(usersData.filter(u => u.role === 'faculty'));
             setCoordinatorList(usersData.filter(u => u.role === 'event_coordinator'));
             setJudgeList(usersData.filter(u => u.role === 'judge'));
+            setCategoryList(categoriesData);
             
         } catch (err) {
             console.error("Error fetching data", err);
@@ -77,6 +83,26 @@ const Events = () => {
         setRulebookFile(e.target.files[0]);
     };
 
+    const formatTimeTo12hr = (time24) => {
+        if (!time24) return '';
+        const [hours, minutes] = time24.split(':');
+        const h = parseInt(hours);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        return `${h12.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+    };
+
+    const parse12hrTo24hr = (time12) => {
+        if (!time12) return '';
+        const match = time12.match(/^(0?[1-9]|1[0-2]):([0-5][0-9])\s?(AM|PM)$/i);
+        if (!match) return '';
+        let [_, h, m, ampm] = match;
+        h = parseInt(h);
+        if (ampm.toUpperCase() === 'PM' && h < 12) h += 12;
+        if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+        return `${h.toString().padStart(2, '0')}:${m}`;
+    };
+
     const openCreateModal = () => {
         setIsEdit(false);
         setFormData({
@@ -93,15 +119,31 @@ const Events = () => {
             event_coordinator_ids: [],
             judge_ids: [],
             category: 'General',
+            time_slot: '',
             status: 'SCHEDULED' // Default
         });
         setRulebookFile(null);
+        setStartTime('');
+        setEndTime('');
         setShowModal(true);
     };
 
     const openEditModal = (event) => {
         setIsEdit(true);
         setCurrentId(event.id);
+        
+        // Parse time_slot (e.g. "10:00 AM - 01:00 PM")
+        if (event.time_slot) {
+            const parts = event.time_slot.split(' - ');
+            if (parts.length === 2) {
+                setStartTime(parse12hrTo24hr(parts[0]));
+                setEndTime(parse12hrTo24hr(parts[1]));
+            }
+        } else {
+            setStartTime('');
+            setEndTime('');
+        }
+
         setFormData({
             ...event,
             event_date: event.event_date ? event.event_date.split('T')[0] : '',
@@ -124,6 +166,13 @@ const Events = () => {
             // Ensure dates are ISO
             if (payload.event_date) payload.event_date = new Date(payload.event_date).toISOString();
             if (payload.registration_deadline) payload.registration_deadline = new Date(payload.registration_deadline).toISOString();
+
+            // Format Time Slot from pickers
+            if (startTime && endTime) {
+                payload.time_slot = `${formatTimeTo12hr(startTime)} - ${formatTimeTo12hr(endTime)}`;
+            } else {
+                payload.time_slot = formData.time_slot; // Fallback to raw string if only partially filled
+            }
 
             let response;
             if (isEdit) {
@@ -177,6 +226,7 @@ const Events = () => {
                         <tr>
                             <th>Title</th>
                             <th>Date</th>
+                            <th>Time Slot</th>
                             <th>Type</th>
                             <th>Status</th>
                             <th>Coordinator</th>
@@ -188,6 +238,7 @@ const Events = () => {
                             <tr key={event.id}>
                                 <td>{event.title}</td>
                                 <td>{new Date(event.event_date).toLocaleDateString()}</td>
+                                <td>{event.time_slot || 'N/A'}</td>
                                 <td><Badge bg="secondary">{event.event_type}</Badge></td>
                                 <td>
                                     <Badge bg={
@@ -239,8 +290,13 @@ const Events = () => {
                             </Col>
                             <Col md={6}>
                                 <Form.Group className="mb-3">
-                                    <Form.Label>Category</Form.Label>
-                                    <Form.Control name="category" value={formData.category} onChange={handleInputChange} />
+                                    <Form.Label>Category *</Form.Label>
+                                    <Form.Select name="category" value={formData.category} onChange={handleInputChange} required>
+                                        <option value="">Select Category</option>
+                                        {categoryList.map(cat => (
+                                            <option key={cat.id || cat._id} value={cat.name}>{cat.name}</option>
+                                        ))}
+                                    </Form.Select>
                                 </Form.Group>
                             </Col>
                         </Row>
@@ -267,6 +323,21 @@ const Events = () => {
                                 <Form.Group className="mb-3">
                                     <Form.Label>Location *</Form.Label>
                                     <Form.Control name="location" value={formData.location} onChange={handleInputChange} required />
+                                </Form.Group>
+                            </Col>
+                        </Row>
+
+                        <Row>
+                            <Col md={3}>
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Start Time</Form.Label>
+                                    <Form.Control type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+                                </Form.Group>
+                            </Col>
+                            <Col md={3}>
+                                <Form.Group className="mb-3">
+                                    <Form.Label>End Time</Form.Label>
+                                    <Form.Control type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
                                 </Form.Group>
                             </Col>
                         </Row>

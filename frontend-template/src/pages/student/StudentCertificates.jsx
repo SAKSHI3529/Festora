@@ -37,6 +37,7 @@ const StudentCertificates = () => {
                         <thead className="table-light">
                             <tr>
                                 <th>Event</th>
+                                <th>Student</th>
                                 <th>Type</th>
                                 <th>Rank</th>
                                 <th>Action</th>
@@ -45,15 +46,8 @@ const StudentCertificates = () => {
                         <tbody>
                             {certificates.map(c => (
                                 <tr key={c.id}>
-                                    {/* Backend certificate object doesn't have event title directly populated usually. 
-                                        But schema might? Let's check schema/model.
-                                        Schema has 'event_id'. No lookup in `get_my_certificates`.
-                                        We might need to fetch event title separately or just show ID.
-                                        Or update backend to lookup event title.
-                                        For now, just showing ID or "Event". 
-                                        Actually, let's fix backend to include Event Title if easy, or ignore.
-                                    */}
-                                    <td>Event #{c.event_id.substr(-4)}</td> 
+                                    <td>{c.event_title || `Event #${c.event_id.substr(-4)}`}</td> 
+                                    <td>{c.student_name}</td>
                                     <td>{c.certificate_type}</td>
                                     <td>{c.rank || '-'}</td>
                                     <td>
